@@ -18,35 +18,42 @@ success:
     MOVB $1, ret+8(FP)
     RET
 
-// UintN returns a random uint64 in [0, n), using RDRAND.
 // func UintN(n uint64) (val uint64, ok bool)
 TEXT ·UintN(SB), NOSPLIT, $0-24
-    // Load n
-    MOVQ n+0(FP), BX
+	MOVQ n+0(FP), BX
+	TESTQ BX, BX
+	JZ fastzero
+
+	// Compute n-1 for comparison
+	MOVQ BX, R8
+	DECQ R8
+
 retry:
-    // RDRAND AX (0F C7 F0)
-    BYTE $0x0F
-    BYTE $0xC7
-    BYTE $0xF0
-    JNC fail
+	// RDRAND to AX: 0F C7 F0
+	BYTE $0x0F; BYTE $0xC7; BYTE $0xF0
+	JNC fail
 
-    // Compute (2^64 - n) % n
-    MOVQ BX, CX
-    NEGQ CX
-    ANDQ BX, CX
+	// AX contains the random value
+	// Compute random % n
+	MOVQ AX, CX
+	XORQ DX, DX    // Clear DX for division
+	DIVQ BX        // Divide CX by BX, quotient in AX, remainder in DX
 
-    // Multiply AX * BX => DX:AX
-    MULQ BX
+	// Check if remainder (DX) is valid
+	CMPQ DX, R8
+	JA retry       // If remainder > n-1, retry
 
-    // Reject if result >= threshold
-    CMPQ DX, CX
-    JAE retry
+	// Store results
+	MOVQ DX, val+8(FP)  // Return remainder as val
+	MOVB $1, ok+16(FP)  // Return true for ok
+	RET
 
-    // Success
-    MOVQ DX, ret+8(FP)
-    MOVB $1, ret+16(FP)
-    RET
+fastzero:
+	MOVQ $0, val+8(FP)
+	MOVB $1, ok+16(FP)
+	RET
+
 fail:
-    MOVQ $0, ret+8(FP)
-    MOVB $0, ret+16(FP)
-    RET
+	MOVQ $0, val+8(FP)
+	MOVB $0, ok+16(FP)
+	RET
