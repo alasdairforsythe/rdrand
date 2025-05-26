@@ -1,5 +1,7 @@
 // +build amd64
 
+#include "textflag.h"
+
 // Uint generates a 64-bit random number using the RDRAND instruction.
 // func Uint() (val uint64, ok bool)
 TEXT ·Uint(SB), NOSPLIT, $0-16
