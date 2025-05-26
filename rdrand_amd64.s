@@ -9,13 +9,13 @@ TEXT ·Uint(SB), NOSPLIT, $0-16
     BYTE $0x0F
     BYTE $0xC7
     BYTE $0xF0
-    JC success
-    MOVQ $0, ret+0(FP)
-    MOVB $0, ret+8(FP)
-    RET
-success:
+    JNC failure
     MOVQ AX, ret+0(FP)
     MOVB $1, ret+8(FP)
+    RET
+failure:
+    MOVQ $0, ret+0(FP)
+    MOVB $0, ret+8(FP)
     RET
 
 // func UintN(n uint64) (val uint64, ok bool)
