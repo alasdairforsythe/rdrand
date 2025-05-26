@@ -1,13 +1,12 @@
 // +build amd64
 
-// Package rdrand provides hardware random number generation using RDRAND instruction.
-package rdrand
-
-// Gen generates a 64-bit random number using RDRAND instruction.
-// Returns the random number and a boolean indicating success.
-// If the CPU doesn't support RDRAND or the instruction fails, returns 0 and false.
-TEXT ·Gen64(SB),$0-16
-    RDRAND AX
+// Gen64 generates a 64-bit random number using the RDRAND instruction.
+// func Gen64() (val uint64, ok bool)
+TEXT ·Gen64(SB), NOSPLIT, $0-16
+    // Emit RDRAND AX (0F C7 F0)
+    BYTE $0x0F
+    BYTE $0xC7
+    BYTE $0xF0
     JC success
     MOVQ $0, ret+0(FP)
     MOVB $0, ret+8(FP)
@@ -17,27 +16,31 @@ success:
     MOVB $1, ret+8(FP)
     RET
 
-// GenN generates a random number between 0 and n (exclusive) using RDRAND.
-// Takes n as input (uint64). Returns the random number and a boolean indicating success.
-// Uses multiplication-based scaling for performance, optimized for minimal branching.
-// If RDRAND fails, returns 0 and false. Undefined behavior if n is 0.
-TEXT ·Gen(SB),$0-24
+// Gen returns a random uint64 in [0, n), using RDRAND.
+// func Gen(n uint64) (val uint64, ok bool)
+TEXT ·Gen(SB), NOSPLIT, $0-24
     // Load n
     MOVQ n+0(FP), BX
 retry:
-    // Generate random number
-    RDRAND AX
+    // RDRAND AX (0F C7 F0)
+    BYTE $0x0F
+    BYTE $0xC7
+    BYTE $0xF0
     JNC fail
-    // Compute threshold: (2^64 - n) % n
+
+    // Compute (2^64 - n) % n
     MOVQ BX, CX
     NEGQ CX
     ANDQ BX, CX
-    // Scale: result = (random * n) >> 64
+
+    // Multiply AX * BX => DX:AX
     MULQ BX
-    // Check if result >= threshold
+
+    // Reject if result >= threshold
     CMPQ DX, CX
     JAE retry
-    // Store result and success
+
+    // Success
     MOVQ DX, ret+8(FP)
     MOVB $1, ret+16(FP)
     RET
