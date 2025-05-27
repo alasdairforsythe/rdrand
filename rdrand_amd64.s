@@ -57,3 +57,30 @@ fail:
 	MOVQ $0, val+8(FP)
 	MOVB $0, ok+16(FP)
 	RET
+
+// Float32 generates a float32 random number between 0 and 1 using RDRAND.
+// func Float32() (val float32, ok bool)
+TEXT ·Float32(SB), NOSPLIT, $8-8
+	// RDRAND EAX
+	BYTE $0x0F; BYTE $0xC7; BYTE $0xF0
+	JNC fail32
+
+	SHRL $9, AX                // 23 random bits (mantissa)
+	ORL  $0x3F800000, AX       // exponent 127, [1,2)
+	
+	MOVL AX, 0(SP)             // store as uint32 temp
+	MOVSS 0(SP), X0            // load as float32 to XMM0
+
+	MOVL $0x3F800000, CX       // 1.0f bits
+	MOVL CX, 4(SP)
+	MOVSS 4(SP), X1            // load to XMM1
+
+	SUBSS X1, X0               // X0 = X0 - 1.0, [0,1)
+	MOVSS X0, val+0(FP)
+	MOVB $1, ok+4(FP)
+	RET
+
+fail32:
+	MOVL $0, val+0(FP)
+	MOVB $0, ok+4(FP)
+	RET
