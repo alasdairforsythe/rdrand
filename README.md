@@ -1,5 +1,5 @@
 # rdrand
-Fastest random number generator for Go using assembly. It can generate a random number in 6 cycles. Currently only supports x86_64.
+Random number generator for Go using CPU RDRAND instructions.
 
 ## Usage
 ```go
